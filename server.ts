@@ -29,6 +29,7 @@ async function main() {
   const httpServer = createServer((req, res) => {
     handle(req, res);
   });
+  httpServer.setMaxListeners(0);
 
   // Attach Socket.IO
   const io = new SocketIOServer(httpServer, {
@@ -47,10 +48,15 @@ async function main() {
     console.log(`[Server] Mode: ${dev ? "development" : "production"}`);
   });
 
-  // Graceful shutdown
+  // Graceful shutdown — force exit after 3s so open Socket.IO connections don't hang
+  let shuttingDown = false;
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log("[Server] Shutting down...");
+    setTimeout(() => process.exit(0), 3000).unref();
     await mcpManager.shutdown();
+    io.close();
     httpServer.close(() => process.exit(0));
   };
 

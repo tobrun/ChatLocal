@@ -11,7 +11,7 @@ export interface HealthStatus {
 export async function checkHealth(): Promise<HealthStatus> {
   try {
     const res = await fetch(`${vllmBaseURL}/v1/models`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return { status: "down" };
     const data = await res.json();
@@ -31,7 +31,7 @@ export async function checkHealth(): Promise<HealthStatus> {
 export async function listModels(): Promise<VllmModel[]> {
   try {
     const res = await fetch(`${vllmBaseURL}/v1/models`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return [];
     const data = await res.json();

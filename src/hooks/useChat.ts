@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { useSocket } from "./useSocket";
 import type {
   MessageData,
@@ -145,7 +146,7 @@ export function useChat(sessionId: string | null) {
           : content;
 
       const optimisticMsg: MessageData = {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         sessionId,
         role: "user",
         content: userContent,
@@ -157,7 +158,7 @@ export function useChat(sessionId: string | null) {
       setIsGenerating(true);
       setMessages((prev) => [...prev, optimisticMsg]);
       setStreaming({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         content: "",
         thinking: "",
         toolCalls: [],

@@ -34,6 +34,14 @@ export function MessageList({ messages, streaming }: MessageListProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streaming?.content, streaming?.toolCalls]);
 
+  // Build a lookup of tool results keyed by tool_call_id
+  const toolResults = new Map<string, { content: string; isError: boolean }>();
+  for (const m of messages) {
+    if (m.role === "tool" && m.toolCallId) {
+      toolResults.set(m.toolCallId, { content: m.content, isError: false });
+    }
+  }
+
   const visible = messages.filter((m) => m.role !== "system" && m.role !== "tool");
 
   return (
@@ -46,7 +54,7 @@ export function MessageList({ messages, streaming }: MessageListProps) {
         )}
 
         {visible.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble key={msg.id} message={msg} toolResults={toolResults} />
         ))}
 
         {streaming && (

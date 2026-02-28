@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -11,12 +11,29 @@ import { cn } from "@/lib/utils";
 
 interface ThinkingBlockProps {
   content: string;
+  isStreaming?: boolean;
 }
 
-export function ThinkingBlock({ content }: ThinkingBlockProps) {
-  const [open, setOpen] = useState(false);
+export function ThinkingBlock({ content, isStreaming }: ThinkingBlockProps) {
+  // Auto-open while streaming so the user can watch reasoning live
+  const [open, setOpen] = useState(!!isStreaming);
 
-  if (!content) return null;
+  useEffect(() => {
+    if (isStreaming) {
+      setOpen(true);
+    } else {
+      // Collapse when streaming finishes
+      setOpen(false);
+    }
+  }, [isStreaming]);
+
+  // Strip raw <think> / </think> tags that may appear during streaming
+  const displayContent = content
+    .replace(/^<think>\s?/, "")
+    .replace(/\s?<\/think>$/, "")
+    .trim();
+
+  if (!displayContent) return null;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mb-3">
@@ -28,6 +45,9 @@ export function ThinkingBlock({ content }: ThinkingBlockProps) {
         )}
         <Brain className="h-3.5 w-3.5" />
         <span>Reasoning</span>
+        {isStreaming && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse ml-0.5" />
+        )}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div
@@ -36,7 +56,7 @@ export function ThinkingBlock({ content }: ThinkingBlockProps) {
             "text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed"
           )}
         >
-          {content}
+          {displayContent}
         </div>
       </CollapsibleContent>
     </Collapsible>

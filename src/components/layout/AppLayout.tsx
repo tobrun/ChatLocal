@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Sidebar } from "./Sidebar";
-import { HealthBanner } from "./HealthBanner";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -30,18 +31,29 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0">
-        <HealthBanner />
+        {/* Top bar */}
+        <div className="flex items-center px-3 py-2 border-b border-border">
+          {/* Mobile: hamburger + title */}
+          <div className="md:hidden flex items-center gap-2 flex-1">
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+            <span className="font-semibold text-sm">ChatLocal</span>
+          </div>
+          <div className="hidden md:flex flex-1" />
 
-        {/* Mobile header */}
-        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-border">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <span className="font-semibold text-sm">ChatLocal</span>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/settings">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="left">Settings</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         <main className="flex-1 overflow-hidden">{children}</main>

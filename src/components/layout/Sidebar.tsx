@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, SearchIcon, Settings } from "lucide-react";
+import { PlusIcon, SearchIcon } from "lucide-react";
 import { useSessions } from "@/hooks/useSessions";
 import { SessionItem } from "@/components/session/SessionItem";
 import { useHealth } from "@/hooks/useHealth";
@@ -58,10 +56,8 @@ export function Sidebar() {
   };
 
   const filtered = search.trim()
-    ? sessions.filter(
-        (s) =>
-          s.title.toLowerCase().includes(search.toLowerCase()) ||
-          s.modelId.toLowerCase().includes(search.toLowerCase())
+    ? sessions.filter((s) =>
+        s.title.toLowerCase().includes(search.toLowerCase())
       )
     : sessions;
 
@@ -87,7 +83,7 @@ export function Sidebar() {
           className="w-full gap-2"
           size="sm"
           onClick={handleNewChat}
-          disabled={!defaultModel || health.status === "down"}
+          disabled={!defaultModel}
         >
           <PlusIcon className="h-4 w-4" />
           New Chat
@@ -96,21 +92,21 @@ export function Sidebar() {
 
       <Separator />
 
-      {/* Search */}
+      {/* Filter by title */}
       <div className="px-2 py-2">
         <div className="relative">
           <SearchIcon className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search sessions..."
+            placeholder="Filter sessions..."
             className="pl-7 h-8 text-sm"
           />
         </div>
       </div>
 
       {/* Session list */}
-      <ScrollArea className="flex-1 px-1">
+      <div className="flex-1 min-h-0 overflow-y-auto px-1">
         <div className="space-y-0.5 py-1">
           {filtered.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-4">
@@ -126,18 +122,6 @@ export function Sidebar() {
             />
           ))}
         </div>
-      </ScrollArea>
-
-      <Separator />
-
-      {/* Footer */}
-      <div className="p-2">
-        <Link href="/settings">
-          <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
-        </Link>
       </div>
     </div>
   );

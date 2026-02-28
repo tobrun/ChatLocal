@@ -14,6 +14,7 @@ interface ManagedServer {
 class McpManager {
   private servers = new Map<string, ManagedServer>();
   private initialized = false;
+  private shuttingDown = false;
 
   async initialize(configPath?: string) {
     if (this.initialized) return;
@@ -71,11 +72,13 @@ class McpManager {
       this.servers.set(name, { client, transport, tools });
       console.log(`[MCP] Server "${name}" connected with ${tools.length} tools:`, tools.map((t) => t.name));
 
-      // Restart on error
+      // Restart on error, but not during intentional shutdown
       transport.onclose = () => {
+        if (this.shuttingDown) return;
         console.warn(`[MCP] Server "${name}" disconnected, attempting restart in 5s`);
         this.servers.delete(name);
         setTimeout(() => {
+          if (this.shuttingDown) return;
           this.spawnServer(name, config).catch((err) =>
             console.error(`[MCP] Server "${name}" failed to restart:`, err)
           );
@@ -140,8 +143,11 @@ class McpManager {
   }
 
   async shutdown() {
+    this.shuttingDown = true;
     for (const [name, server] of this.servers) {
       try {
+        // Remove the onclose handler before closing so it doesn't trigger a restart
+        server.transport.onclose = null;
         await server.transport.close();
       } catch {
         // ignore shutdown errors

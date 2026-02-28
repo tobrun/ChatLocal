@@ -6,6 +6,7 @@ import type { MessageData } from "@/types";
 
 interface MessageBubbleProps {
   message: MessageData;
+  toolResults?: Map<string, { content: string; isError: boolean }>;
 }
 
 function UserContent({ content }: { content: string }) {
@@ -39,19 +40,42 @@ function UserContent({ content }: { content: string }) {
   );
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, toolResults }: MessageBubbleProps) {
   if (message.role === "system" || message.role === "tool") return null;
 
   const isUser = message.role === "user";
 
-  let toolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = [];
-  if (message.toolCalls) {
+  let resolvedToolCalls: Array<{
+    callId: string;
+    toolName: string;
+    args: Record<string, unknown>;
+    result?: string;
+    isError?: boolean;
+    done: boolean;
+  }> = [];
+
+  if (!isUser && message.toolCalls) {
     try {
-      toolCalls = typeof message.toolCalls === "string"
-        ? JSON.parse(message.toolCalls)
-        : message.toolCalls;
+      const raw: Array<{ id: string; function: { name: string; arguments: string } }> =
+        typeof message.toolCalls === "string"
+          ? JSON.parse(message.toolCalls)
+          : message.toolCalls;
+
+      resolvedToolCalls = raw.map((tc) => {
+        const resultEntry = toolResults?.get(tc.id);
+        let args: Record<string, unknown> = {};
+        try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* ignore */ }
+        return {
+          callId: tc.id,
+          toolName: tc.function.name,
+          args,
+          result: resultEntry?.content,
+          isError: resultEntry?.isError,
+          done: true,
+        };
+      });
     } catch {
-      // ignore
+      // ignore malformed tool calls
     }
   }
 
@@ -77,6 +101,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <AssistantMessage
             content={message.content}
             thinking={message.thinking}
+            toolCalls={resolvedToolCalls}
           />
         )}
       </div>

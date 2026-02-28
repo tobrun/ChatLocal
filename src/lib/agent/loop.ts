@@ -14,7 +14,7 @@ import { vllmClient } from "@/lib/vllm/client";
 import { mcpManager } from "@/lib/mcp/manager";
 import { summarizeAndCompress, countTokens } from "./context";
 import { generateSessionTitle } from "./naming";
-import { checkHealth } from "@/lib/vllm/health";
+import { listModels } from "@/lib/vllm/health";
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -98,15 +98,12 @@ export async function runAgentLoop(
       return;
     }
 
-    // Check vLLM health
-    const health = await checkHealth();
-    if (health.status === "down") {
-      socket.emit("generation_error", { error: "Model server is unreachable" });
-      return;
-    }
-
     const modelId = session.modelId;
-    const maxModelLen = health.maxModelLen ?? 8192;
+
+    // Fetch max_model_len for context management — non-blocking, fall back to safe default
+    const models = await listModels();
+    const modelInfo = models.find((m) => m.id === modelId);
+    const maxModelLen = (modelInfo as { max_model_len?: number } | undefined)?.max_model_len ?? 8192;
 
     // Save user message
     const userMsgId = uuidv4();

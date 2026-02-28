@@ -2,13 +2,11 @@
 
 import { useEffect } from "react";
 import { useChat } from "@/hooks/useChat";
-import { useHealth } from "@/hooks/useHealth";
 import { useSettingsStore } from "@/stores/settings";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import useSWR from "swr";
 import type { VllmModel, SessionSummary } from "@/types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -20,7 +18,6 @@ interface ChatViewProps {
 export function ChatView({ sessionId }: ChatViewProps) {
   const { messages, streaming, isGenerating, error, sendMessage, cancelGeneration, clearError } =
     useChat(sessionId);
-  const health = useHealth();
   const { settings, loaded, fetchSettings } = useSettingsStore();
   const { data: session } = useSWR<SessionSummary>(`/api/sessions/${sessionId}`, fetcher);
   const { data: models = [] } = useSWR<VllmModel[]>("/api/models", fetcher, {
@@ -31,12 +28,11 @@ export function ChatView({ sessionId }: ChatViewProps) {
     if (!loaded) fetchSettings();
   }, [loaded, fetchSettings]);
 
-  const isServerDown = health.status === "down";
   const modelName = session?.modelId?.split("/").pop() ?? session?.modelId ?? "Unknown model";
   const isModelLoaded = models.some((m) => m.id === session?.modelId);
   const isReadOnly = session && !isModelLoaded && models.length > 0;
 
-  const canSend = !isServerDown && !isReadOnly && loaded;
+  const canSend = !isReadOnly && loaded;
 
   return (
     <div className="flex flex-col h-full">
