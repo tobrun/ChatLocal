@@ -1,0 +1,144 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { PlusIcon, SearchIcon, Settings } from "lucide-react";
+import { useSessions } from "@/hooks/useSessions";
+import { SessionItem } from "@/components/session/SessionItem";
+import { useHealth } from "@/hooks/useHealth";
+import useSWR from "swr";
+import type { VllmModel } from "@/types";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+export function Sidebar() {
+  const router = useRouter();
+  const { sessions, refresh } = useSessions();
+  const [search, setSearch] = useState("");
+  const health = useHealth();
+  const { data: models = [] } = useSWR<VllmModel[]>("/api/models", fetcher, {
+    refreshInterval: 15000,
+  });
+
+  const defaultModel = models[0]?.id ?? "";
+
+  const handleNewChat = async () => {
+    if (!defaultModel) return;
+    try {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modelId: defaultModel }),
+      });
+      const session = await res.json();
+      await refresh();
+      router.push(`/chat/${session.id}`);
+    } catch (err) {
+      console.error("Failed to create session:", err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+    refresh();
+  };
+
+  const handleRename = async (id: string, title: string) => {
+    await fetch(`/api/sessions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    refresh();
+  };
+
+  const filtered = search.trim()
+    ? sessions.filter(
+        (s) =>
+          s.title.toLowerCase().includes(search.toLowerCase()) ||
+          s.modelId.toLowerCase().includes(search.toLowerCase())
+      )
+    : sessions;
+
+  return (
+    <div className="flex flex-col h-full w-64 border-r border-border bg-background">
+      {/* Header */}
+      <div className="p-3 flex items-center gap-2">
+        <span className="font-semibold text-sm flex-1">ChatLocal</span>
+        <div
+          className={`w-2 h-2 rounded-full ${
+            health.status === "ok"
+              ? "bg-green-500"
+              : health.status === "down"
+              ? "bg-destructive"
+              : "bg-muted-foreground"
+          }`}
+          title={health.status === "ok" ? `Connected: ${health.model}` : "Disconnected"}
+        />
+      </div>
+
+      <div className="px-2 pb-2">
+        <Button
+          className="w-full gap-2"
+          size="sm"
+          onClick={handleNewChat}
+          disabled={!defaultModel || health.status === "down"}
+        >
+          <PlusIcon className="h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
+
+      <Separator />
+
+      {/* Search */}
+      <div className="px-2 py-2">
+        <div className="relative">
+          <SearchIcon className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search sessions..."
+            className="pl-7 h-8 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Session list */}
+      <ScrollArea className="flex-1 px-1">
+        <div className="space-y-0.5 py-1">
+          {filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              {search ? "No matching sessions" : "No sessions yet"}
+            </p>
+          )}
+          {filtered.map((session) => (
+            <SessionItem
+              key={session.id}
+              session={session}
+              onDelete={handleDelete}
+              onRename={handleRename}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+
+      <Separator />
+
+      {/* Footer */}
+      <div className="p-2">
+        <Link href="/settings">
+          <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
