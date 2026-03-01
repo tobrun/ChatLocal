@@ -8,7 +8,7 @@ export async function generateSessionTitle(
   userMessage: string,
   assistantResponse: string,
   modelId: string
-): Promise<void> {
+): Promise<string | undefined> {
   try {
     const response = await vllmClient.chat.completions.create({
       model: modelId,
@@ -29,13 +29,20 @@ export async function generateSessionTitle(
     });
 
     const title = response.choices[0]?.message?.content?.trim();
-    if (!title) return;
+    if (!title) {
+      console.warn("[Naming] Model returned empty title for session:", sessionId);
+      return undefined;
+    }
 
     await db
       .update(sessions)
       .set({ title, updatedAt: sql`(unixepoch())` })
       .where(eq(sessions.id, sessionId));
+
+    console.log("[Naming] Session title set:", sessionId, "→", title);
+    return title;
   } catch (err) {
     console.error("[Naming] Failed to generate session title:", err);
+    return undefined;
   }
 }

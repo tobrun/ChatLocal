@@ -387,9 +387,12 @@ export async function runAgentLoop(
     }
 
     // Auto-generate session title after first exchange (async, no await)
-    const msgCount = await db.$count(messages, eq(messages.sessionId, sessionId));
-    if (msgCount <= 3) {
-      generateSessionTitle(sessionId, userMessage, finalContent, modelId).catch(() => {});
+    if (session.title === "New Chat" && finalContent) {
+      generateSessionTitle(sessionId, userMessage, finalContent, modelId)
+        .then((title) => {
+          if (title) socket.emit("session_renamed", { sessionId, title });
+        })
+        .catch((err) => console.error("[AgentLoop] Title generation failed:", err));
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
