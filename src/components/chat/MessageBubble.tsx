@@ -2,7 +2,7 @@
 
 import { AssistantMessage } from "./AssistantMessage";
 import { cn } from "@/lib/utils";
-import { Youtube } from "lucide-react";
+import { Youtube, Globe } from "lucide-react";
 import type { MessageData } from "@/types";
 
 interface MessageBubbleProps {
@@ -11,6 +11,7 @@ interface MessageBubbleProps {
 }
 
 const TRANSCRIPT_PREFIX = "[YouTube Transcript — ";
+const WEBPAGE_PREFIX = "[Webpage — ";
 
 function UserContent({ content }: { content: string }) {
   let parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
@@ -34,6 +35,19 @@ function UserContent({ content }: { content: string }) {
             >
               <Youtube className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
               <span>Transcript: {videoId}</span>
+            </div>
+          );
+        }
+        if (part.type === "text" && part.text?.startsWith(WEBPAGE_PREFIX)) {
+          const endBracket = part.text.indexOf("]");
+          const title = part.text.slice(WEBPAGE_PREFIX.length, endBracket);
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 rounded-md bg-primary-foreground/10 border border-primary-foreground/20 px-2.5 py-1.5 text-xs"
+            >
+              <Globe className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <span className="truncate max-w-[200px]">{title}</span>
             </div>
           );
         }

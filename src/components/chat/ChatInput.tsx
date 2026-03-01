@@ -10,17 +10,24 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Square, Paperclip, X, Youtube } from "lucide-react";
+import { Send, Square, Paperclip, X, Youtube, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { YouTubeDialog } from "./YouTubeDialog";
+import { WebpageDialog } from "./WebpageDialog";
 
 interface TranscriptAttachment {
   videoId: string;
   transcript: string;
 }
 
+interface WebpageAttachment {
+  url: string;
+  title: string;
+  content: string;
+}
+
 interface ChatInputProps {
-  onSend: (content: string, images: string[], transcripts?: TranscriptAttachment[]) => void;
+  onSend: (content: string, images: string[], transcripts?: TranscriptAttachment[], webpages?: WebpageAttachment[]) => void;
   onCancel: () => void;
   isGenerating: boolean;
   disabled?: boolean;
@@ -39,8 +46,10 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
   const [value, setValue] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [transcripts, setTranscripts] = useState<TranscriptAttachment[]>([]);
+  const [webpages, setWebpages] = useState<WebpageAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
+  const [webpageOpen, setWebpageOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,16 +67,30 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
     setTranscripts((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const addWebpage = useCallback((content: string, title: string, url: string) => {
+    setWebpages((prev) => [...prev, { url, title, content }]);
+  }, []);
+
+  const removeWebpage = useCallback((index: number) => {
+    setWebpages((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleSend = useCallback(() => {
     const content = value.trim();
-    if (!content && images.length === 0 && transcripts.length === 0) return;
+    if (!content && images.length === 0 && transcripts.length === 0 && webpages.length === 0) return;
     if (isGenerating) return;
-    onSend(content, images, transcripts.length > 0 ? transcripts : undefined);
+    onSend(
+      content,
+      images,
+      transcripts.length > 0 ? transcripts : undefined,
+      webpages.length > 0 ? webpages : undefined,
+    );
     setValue("");
     setImages([]);
     setTranscripts([]);
+    setWebpages([]);
     textareaRef.current?.focus();
-  }, [value, images, transcripts, isGenerating, onSend]);
+  }, [value, images, transcripts, webpages, isGenerating, onSend]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -153,6 +176,27 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
         </div>
       )}
 
+      {/* Webpage previews */}
+      {webpages.length > 0 && (
+        <div className="flex gap-2 px-4 pt-3 flex-wrap">
+          {webpages.map((w, i) => (
+            <div
+              key={i}
+              className="relative group flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs"
+            >
+              <Globe className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <span className="truncate max-w-[160px]">{w.title}</span>
+              <button
+                onClick={() => removeWebpage(i)}
+                className="ml-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-end gap-2 px-4 py-3">
         <input
           ref={fileInputRef}
@@ -182,6 +226,17 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
           title="Add YouTube transcript"
         >
           <Youtube className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 flex-shrink-0"
+          onClick={() => setWebpageOpen(true)}
+          disabled={disabled}
+          title="Add webpage"
+        >
+          <Globe className="h-4 w-4" />
         </Button>
 
         <Textarea
@@ -222,7 +277,7 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
             size="icon"
             className="h-9 w-9 flex-shrink-0"
             onClick={handleSend}
-            disabled={disabled || (!value.trim() && images.length === 0 && transcripts.length === 0)}
+            disabled={disabled || (!value.trim() && images.length === 0 && transcripts.length === 0 && webpages.length === 0)}
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -234,8 +289,14 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
         onOpenChange={setYoutubeOpen}
         onTranscriptLoaded={addTranscript}
       />
+
+      <WebpageDialog
+        open={webpageOpen}
+        onOpenChange={setWebpageOpen}
+        onPageLoaded={addWebpage}
+      />
     </div>
   );
 }
 
-export type { TranscriptAttachment };
+export type { TranscriptAttachment, WebpageAttachment };

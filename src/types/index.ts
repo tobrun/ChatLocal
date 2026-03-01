@@ -46,6 +46,7 @@ export interface AppSettings {
   topP: number;
   maxTokens: number;
   contextThreshold: number;
+  theme: "light" | "dark";
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -54,6 +55,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   topP: 0.9,
   maxTokens: 2048,
   contextThreshold: 0.8,
+  theme: "dark",
 };
 
 export interface VllmModel {
@@ -68,11 +70,18 @@ export interface TranscriptAttachment {
   transcript: string;
 }
 
+export interface WebpageAttachment {
+  url: string;
+  title: string;
+  content: string;
+}
+
 export interface SendMessagePayload {
   sessionId: string;
   content: string;
   images: string[];
   transcripts?: TranscriptAttachment[];
+  webpages?: WebpageAttachment[];
 }
 
 export interface CancelGenerationPayload {

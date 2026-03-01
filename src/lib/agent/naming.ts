@@ -10,7 +10,10 @@ export async function generateSessionTitle(
   modelId: string
 ): Promise<string | undefined> {
   try {
-    const response = await vllmClient.chat.completions.create({
+    // Use streaming so that thinking tokens (delta.reasoning) don't count against
+    // max_tokens — only delta.content tokens do. Non-streaming mode counts thinking
+    // toward max_tokens, causing the model to exhaust the budget before producing output.
+    const stream = await vllmClient.chat.completions.create({
       model: modelId,
       messages: [
         {
@@ -23,12 +26,26 @@ export async function generateSessionTitle(
           content: `User: ${userMessage.slice(0, 500)}\nAssistant: ${assistantResponse.slice(0, 500)}`,
         },
       ],
-      max_tokens: 20,
+      max_tokens: 4096,
       temperature: 0.3,
-      stream: false,
+      stream: true,
     });
 
-    const title = response.choices[0]?.message?.content?.trim();
+    let raw = "";
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) raw += content;
+    }
+
+    // Strip <think>...</think> blocks — some models embed thinking in delta.content
+    const withoutThinking = raw.replace(/^<think>[\s\S]*?<\/think>\s*/m, "");
+
+    // Take the first non-empty line (model sometimes leads with newlines)
+    const title = withoutThinking
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => l.length > 0);
+
     if (!title) {
       console.warn("[Naming] Model returned empty title for session:", sessionId);
       return undefined;

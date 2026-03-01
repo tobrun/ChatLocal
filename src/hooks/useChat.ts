@@ -134,20 +134,35 @@ export function useChat(sessionId: string | null) {
   }, [socket]);
 
   const sendMessage = useCallback(
-    (content: string, images: string[] = [], transcripts?: { videoId: string; transcript: string }[]) => {
+    (
+      content: string,
+      images: string[] = [],
+      transcripts?: { videoId: string; transcript: string }[],
+      webpages?: { url: string; title: string; content: string }[],
+    ) => {
       if (!sessionId || isGenerating) return;
 
-      const hasMedia = images.length > 0 || (transcripts && transcripts.length > 0);
+      const hasMedia =
+        images.length > 0 ||
+        (transcripts && transcripts.length > 0) ||
+        (webpages && webpages.length > 0);
 
       let userContent: string;
       if (hasMedia) {
         const parts: Array<Record<string, unknown>> = [];
-        // Prepend transcript context
         if (transcripts && transcripts.length > 0) {
           for (const t of transcripts) {
             parts.push({
               type: "text",
               text: `[YouTube Transcript — ${t.videoId}]\n${t.transcript}`,
+            });
+          }
+        }
+        if (webpages && webpages.length > 0) {
+          for (const w of webpages) {
+            parts.push({
+              type: "text",
+              text: `[Webpage — ${w.title}]\n${w.content}`,
             });
           }
         }
@@ -180,7 +195,7 @@ export function useChat(sessionId: string | null) {
         isStreaming: true,
       });
 
-      socket.emit("send_message", { sessionId, content, images, transcripts });
+      socket.emit("send_message", { sessionId, content, images, transcripts, webpages });
     },
     [sessionId, isGenerating, socket]
   );

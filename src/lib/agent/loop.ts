@@ -9,7 +9,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { messages, sessions } from "@/lib/db/schema";
-import type { MessageData, AppSettings, TranscriptAttachment } from "@/types";
+import type { MessageData, AppSettings, TranscriptAttachment, WebpageAttachment } from "@/types";
 import { vllmClient } from "@/lib/vllm/client";
 import { mcpManager } from "@/lib/mcp/manager";
 import { summarizeAndCompress, countTokens } from "./context";
@@ -46,8 +46,23 @@ function buildOpenAIMessages(
       let content: ChatCompletionUserMessageParam["content"];
       try {
         const parsed = JSON.parse(msg.content);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        content = Array.isArray(parsed) ? (parsed as any) : msg.content;
+        if (Array.isArray(parsed)) {
+          // Only use multipart array format when there are image parts (required for vision).
+          // For text-only attachments (transcripts, webpages) concatenate into a single
+          // string — vLLM may not reliably forward text-only multipart arrays to the model.
+          const hasImages = parsed.some((p) => p.type === "image_url");
+          if (hasImages) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            content = parsed as any;
+          } else {
+            content = parsed
+              .filter((p) => p.type === "text")
+              .map((p) => p.text as string)
+              .join("\n\n");
+          }
+        } else {
+          content = msg.content;
+        }
       } catch {
         content = msg.content;
       }
@@ -87,7 +102,8 @@ export async function runAgentLoop(
   socket: Socket,
   abortSignal: AbortSignal,
   settings: AppSettings,
-  transcripts: TranscriptAttachment[] = []
+  transcripts: TranscriptAttachment[] = [],
+  webpages: WebpageAttachment[] = []
 ): Promise<void> {
   try {
     // Load session
@@ -110,15 +126,20 @@ export async function runAgentLoop(
     const userMsgId = uuidv4();
     let userContent: string;
 
-    const hasMedia = images.length > 0 || transcripts.length > 0;
+    const hasMedia = images.length > 0 || transcripts.length > 0 || webpages.length > 0;
 
     if (hasMedia) {
       const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
-      // Prepend transcript context
       for (const t of transcripts) {
         contentParts.push({
           type: "text",
           text: `[YouTube Transcript — ${t.videoId}]\n${t.transcript}`,
+        });
+      }
+      for (const w of webpages) {
+        contentParts.push({
+          type: "text",
+          text: `[Webpage — ${w.title}]\n${w.content}`,
         });
       }
       contentParts.push({ type: "text", text: userMessage });

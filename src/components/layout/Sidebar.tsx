@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useSessions } from "@/hooks/useSessions";
 import { SessionItem } from "@/components/session/SessionItem";
 import { useHealth } from "@/hooks/useHealth";
+import { useSettingsStore } from "@/stores/settings";
 import useSWR from "swr";
 import type { VllmModel } from "@/types";
 
@@ -19,6 +20,7 @@ export function Sidebar() {
   const { sessions, refresh } = useSessions();
   const [search, setSearch] = useState("");
   const health = useHealth();
+  const { settings, updateSettings } = useSettingsStore();
   const { data: models = [] } = useSWR<VllmModel[]>("/api/models", fetcher, {
     refreshInterval: 15000,
   });
@@ -122,6 +124,25 @@ export function Sidebar() {
             />
           ))}
         </div>
+      </div>
+
+      <Separator />
+
+      {/* Footer */}
+      <div className="p-2 flex justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => updateSettings({ theme: settings.theme === "dark" ? "light" : "dark" })}
+          title={settings.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {settings.theme === "dark" ? (
+            <SunIcon className="h-4 w-4" />
+          ) : (
+            <MoonIcon className="h-4 w-4" />
+          )}
+        </Button>
       </div>
     </div>
   );
