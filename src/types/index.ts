@@ -63,10 +63,16 @@ export interface VllmModel {
 }
 
 // Socket.IO event payloads
+export interface TranscriptAttachment {
+  videoId: string;
+  transcript: string;
+}
+
 export interface SendMessagePayload {
   sessionId: string;
   content: string;
   images: string[];
+  transcripts?: TranscriptAttachment[];
 }
 
 export interface CancelGenerationPayload {

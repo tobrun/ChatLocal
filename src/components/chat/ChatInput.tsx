@@ -10,11 +10,17 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Square, Paperclip, X } from "lucide-react";
+import { Send, Square, Paperclip, X, Youtube } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { YouTubeDialog } from "./YouTubeDialog";
+
+interface TranscriptAttachment {
+  videoId: string;
+  transcript: string;
+}
 
 interface ChatInputProps {
-  onSend: (content: string, images: string[]) => void;
+  onSend: (content: string, images: string[], transcripts?: TranscriptAttachment[]) => void;
   onCancel: () => void;
   isGenerating: boolean;
   disabled?: boolean;
@@ -32,7 +38,9 @@ function imageFileToBase64(file: File): Promise<string> {
 export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [transcripts, setTranscripts] = useState<TranscriptAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [youtubeOpen, setYoutubeOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,15 +50,24 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
     setImages((prev) => [...prev, ...encoded]);
   }, []);
 
+  const addTranscript = useCallback((transcript: string, videoId: string) => {
+    setTranscripts((prev) => [...prev, { videoId, transcript }]);
+  }, []);
+
+  const removeTranscript = useCallback((index: number) => {
+    setTranscripts((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleSend = useCallback(() => {
     const content = value.trim();
-    if (!content && images.length === 0) return;
+    if (!content && images.length === 0 && transcripts.length === 0) return;
     if (isGenerating) return;
-    onSend(content, images);
+    onSend(content, images, transcripts.length > 0 ? transcripts : undefined);
     setValue("");
     setImages([]);
+    setTranscripts([]);
     textareaRef.current?.focus();
-  }, [value, images, isGenerating, onSend]);
+  }, [value, images, transcripts, isGenerating, onSend]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -115,6 +132,27 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
         </div>
       )}
 
+      {/* Transcript previews */}
+      {transcripts.length > 0 && (
+        <div className="flex gap-2 px-4 pt-3 flex-wrap">
+          {transcripts.map((t, i) => (
+            <div
+              key={i}
+              className="relative group flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs"
+            >
+              <Youtube className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+              <span className="truncate max-w-[140px]">{t.videoId}</span>
+              <button
+                onClick={() => removeTranscript(i)}
+                className="ml-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-end gap-2 px-4 py-3">
         <input
           ref={fileInputRef}
@@ -133,6 +171,17 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
           disabled={disabled}
         >
           <Paperclip className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 flex-shrink-0"
+          onClick={() => setYoutubeOpen(true)}
+          disabled={disabled}
+          title="Add YouTube transcript"
+        >
+          <Youtube className="h-4 w-4" />
         </Button>
 
         <Textarea
@@ -173,12 +222,20 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
             size="icon"
             className="h-9 w-9 flex-shrink-0"
             onClick={handleSend}
-            disabled={disabled || (!value.trim() && images.length === 0)}
+            disabled={disabled || (!value.trim() && images.length === 0 && transcripts.length === 0)}
           >
             <Send className="h-4 w-4" />
           </Button>
         )}
       </div>
+
+      <YouTubeDialog
+        open={youtubeOpen}
+        onOpenChange={setYoutubeOpen}
+        onTranscriptLoaded={addTranscript}
+      />
     </div>
   );
 }
+
+export type { TranscriptAttachment };

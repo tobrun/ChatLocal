@@ -2,12 +2,15 @@
 
 import { AssistantMessage } from "./AssistantMessage";
 import { cn } from "@/lib/utils";
+import { Youtube } from "lucide-react";
 import type { MessageData } from "@/types";
 
 interface MessageBubbleProps {
   message: MessageData;
   toolResults?: Map<string, { content: string; isError: boolean }>;
 }
+
+const TRANSCRIPT_PREFIX = "[YouTube Transcript — ";
 
 function UserContent({ content }: { content: string }) {
   let parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
@@ -21,6 +24,19 @@ function UserContent({ content }: { content: string }) {
   return (
     <div className="space-y-2">
       {parts.map((part, i) => {
+        if (part.type === "text" && part.text?.startsWith(TRANSCRIPT_PREFIX)) {
+          const endBracket = part.text.indexOf("]");
+          const videoId = part.text.slice(TRANSCRIPT_PREFIX.length, endBracket);
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-1.5 rounded-md bg-primary-foreground/10 border border-primary-foreground/20 px-2.5 py-1.5 text-xs"
+            >
+              <Youtube className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
+              <span>Transcript: {videoId}</span>
+            </div>
+          );
+        }
         if (part.type === "text") {
           return <p key={i} className="text-sm whitespace-pre-wrap">{part.text}</p>;
         }
