@@ -43,7 +43,7 @@ export function registerSocketHandlers(io: Server) {
     });
 
     socket.on("send_message", async (payload: SendMessagePayload) => {
-      const { sessionId, content, images = [] } = payload;
+      const { sessionId, content, images = [], videos = [] } = payload;
 
       // Cancel any existing generation for this session
       const existing = activeGenerations.get(sessionId);
@@ -58,7 +58,7 @@ export function registerSocketHandlers(io: Server) {
       const appSettings = await getSettings();
 
       try {
-        await runAgentLoop(sessionId, content, images, socket, controller.signal, appSettings);
+        await runAgentLoop(sessionId, content, images, videos, socket, controller.signal, appSettings);
       } finally {
         activeGenerations.delete(sessionId);
       }

@@ -134,16 +134,17 @@ export function useChat(sessionId: string | null) {
   }, [socket]);
 
   const sendMessage = useCallback(
-    (content: string, images: string[] = []) => {
+    (content: string, images: string[] = [], videos: string[] = []) => {
       if (!sessionId || isGenerating) return;
 
-      const userContent =
-        images.length > 0
-          ? JSON.stringify([
-              { type: "text", text: content },
-              ...images.map((img) => ({ type: "image_url", image_url: { url: img } })),
-            ])
-          : content;
+      const hasMedia = images.length > 0 || videos.length > 0;
+      const userContent = hasMedia
+        ? JSON.stringify([
+            { type: "text", text: content },
+            ...images.map((img) => ({ type: "image_url", image_url: { url: img } })),
+            ...videos.map((vid) => ({ type: "video_url", video_url: { url: vid } })),
+          ])
+        : content;
 
       const optimisticMsg: MessageData = {
         id: uuidv4(),
@@ -165,7 +166,7 @@ export function useChat(sessionId: string | null) {
         isStreaming: true,
       });
 
-      socket.emit("send_message", { sessionId, content, images });
+      socket.emit("send_message", { sessionId, content, images, videos });
     },
     [sessionId, isGenerating, socket]
   );

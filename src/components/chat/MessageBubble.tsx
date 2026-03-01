@@ -10,7 +10,12 @@ interface MessageBubbleProps {
 }
 
 function UserContent({ content }: { content: string }) {
-  let parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+  let parts: Array<{
+    type: string;
+    text?: string;
+    image_url?: { url: string };
+    video_url?: { url: string };
+  }> = [];
   try {
     const parsed = JSON.parse(content);
     if (Array.isArray(parsed)) parts = parsed;
@@ -31,6 +36,16 @@ function UserContent({ content }: { content: string }) {
               src={part.image_url.url}
               alt="Attached"
               className="max-h-64 rounded-md border border-border/50 object-contain"
+            />
+          );
+        }
+        if (part.type === "video_url" && part.video_url) {
+          return (
+            <video
+              key={i}
+              src={part.video_url.url}
+              controls
+              className="max-h-64 rounded-md border border-border/50"
             />
           );
         }

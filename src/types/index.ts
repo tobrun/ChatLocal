@@ -67,6 +67,7 @@ export interface SendMessagePayload {
   sessionId: string;
   content: string;
   images: string[];
+  videos: string[];
 }
 
 export interface CancelGenerationPayload {

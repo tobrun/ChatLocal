@@ -84,6 +84,7 @@ export async function runAgentLoop(
   sessionId: string,
   userMessage: string,
   images: string[],
+  videos: string[],
   socket: Socket,
   abortSignal: AbortSignal,
   settings: AppSettings
@@ -109,12 +110,22 @@ export async function runAgentLoop(
     const userMsgId = uuidv4();
     let userContent: string;
 
-    if (images.length > 0) {
-      const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+    const hasMedia = images.length > 0 || videos.length > 0;
+    if (hasMedia) {
+      const contentParts: Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string };
+        video_url?: { url: string };
+      }> = [
         { type: "text", text: userMessage },
         ...images.map((img) => ({
           type: "image_url",
           image_url: { url: img },
+        })),
+        ...videos.map((vid) => ({
+          type: "video_url",
+          video_url: { url: vid },
         })),
       ];
       userContent = JSON.stringify(contentParts);
