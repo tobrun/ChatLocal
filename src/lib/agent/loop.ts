@@ -9,7 +9,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { messages, sessions } from "@/lib/db/schema";
-import type { MessageData, AppSettings } from "@/types";
+import type { MessageData, AppSettings, TranscriptAttachment } from "@/types";
 import { vllmClient } from "@/lib/vllm/client";
 import { mcpManager } from "@/lib/mcp/manager";
 import { summarizeAndCompress, countTokens } from "./context";
@@ -86,7 +86,8 @@ export async function runAgentLoop(
   images: string[],
   socket: Socket,
   abortSignal: AbortSignal,
-  settings: AppSettings
+  settings: AppSettings,
+  transcripts: TranscriptAttachment[] = []
 ): Promise<void> {
   try {
     // Load session
@@ -109,14 +110,24 @@ export async function runAgentLoop(
     const userMsgId = uuidv4();
     let userContent: string;
 
-    if (images.length > 0) {
-      const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-        { type: "text", text: userMessage },
-        ...images.map((img) => ({
+    const hasMedia = images.length > 0 || transcripts.length > 0;
+
+    if (hasMedia) {
+      const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+      // Prepend transcript context
+      for (const t of transcripts) {
+        contentParts.push({
+          type: "text",
+          text: `[YouTube Transcript — ${t.videoId}]\n${t.transcript}`,
+        });
+      }
+      contentParts.push({ type: "text", text: userMessage });
+      for (const img of images) {
+        contentParts.push({
           type: "image_url",
           image_url: { url: img },
-        })),
-      ];
+        });
+      }
       userContent = JSON.stringify(contentParts);
     } else {
       userContent = userMessage;

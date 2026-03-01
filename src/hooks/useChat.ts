@@ -134,16 +134,31 @@ export function useChat(sessionId: string | null) {
   }, [socket]);
 
   const sendMessage = useCallback(
-    (content: string, images: string[] = []) => {
+    (content: string, images: string[] = [], transcripts?: { videoId: string; transcript: string }[]) => {
       if (!sessionId || isGenerating) return;
 
-      const userContent =
-        images.length > 0
-          ? JSON.stringify([
-              { type: "text", text: content },
-              ...images.map((img) => ({ type: "image_url", image_url: { url: img } })),
-            ])
-          : content;
+      const hasMedia = images.length > 0 || (transcripts && transcripts.length > 0);
+
+      let userContent: string;
+      if (hasMedia) {
+        const parts: Array<Record<string, unknown>> = [];
+        // Prepend transcript context
+        if (transcripts && transcripts.length > 0) {
+          for (const t of transcripts) {
+            parts.push({
+              type: "text",
+              text: `[YouTube Transcript — ${t.videoId}]\n${t.transcript}`,
+            });
+          }
+        }
+        parts.push({ type: "text", text: content });
+        for (const img of images) {
+          parts.push({ type: "image_url", image_url: { url: img } });
+        }
+        userContent = JSON.stringify(parts);
+      } else {
+        userContent = content;
+      }
 
       const optimisticMsg: MessageData = {
         id: uuidv4(),
@@ -165,7 +180,7 @@ export function useChat(sessionId: string | null) {
         isStreaming: true,
       });
 
-      socket.emit("send_message", { sessionId, content, images });
+      socket.emit("send_message", { sessionId, content, images, transcripts });
     },
     [sessionId, isGenerating, socket]
   );
