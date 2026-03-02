@@ -2,16 +2,18 @@ import type { Server, Socket } from "socket.io";
 import type { SendMessagePayload, CancelGenerationPayload } from "@/types";
 import { runAgentLoop } from "@/lib/agent/loop";
 import { checkHealth } from "@/lib/vllm/health";
-import { db } from "@/lib/db";
+import { getUserDb } from "@/lib/db";
 import { settings as settingsTable } from "@/lib/db/schema";
 import { DEFAULT_SETTINGS, type AppSettings } from "@/types";
 import { eq } from "drizzle-orm";
+import { parseAuthCookie, verifyToken } from "@/lib/auth";
 
 // Active abort controllers keyed by sessionId
 const activeGenerations = new Map<string, AbortController>();
 
-async function getSettings(): Promise<AppSettings> {
+async function getSettings(userId: string): Promise<AppSettings> {
   try {
+    const db = getUserDb(userId);
     const rows = await db.select().from(settingsTable);
     const merged: Partial<AppSettings> = {};
     for (const row of rows) {
@@ -28,6 +30,24 @@ async function getSettings(): Promise<AppSettings> {
 }
 
 export function registerSocketHandlers(io: Server) {
+  // Authenticate socket connections via auth_token cookie
+  io.use(async (socket, next) => {
+    const cookieHeader = socket.handshake.headers.cookie;
+    const token = parseAuthCookie(cookieHeader);
+
+    if (!token) {
+      return next(new Error("Authentication required"));
+    }
+
+    const userId = await verifyToken(token);
+    if (!userId) {
+      return next(new Error("Invalid or expired token"));
+    }
+
+    socket.data.userId = userId;
+    next();
+  });
+
   // Broadcast vLLM status every 10 seconds
   setInterval(async () => {
     const health = await checkHealth();
@@ -35,7 +55,8 @@ export function registerSocketHandlers(io: Server) {
   }, 10_000);
 
   io.on("connection", (socket: Socket) => {
-    console.log("[Socket] Client connected:", socket.id);
+    const userId: string = socket.data.userId;
+    console.log("[Socket] Client connected:", socket.id, "user:", userId);
 
     // Send initial health status
     checkHealth().then((health) => {
@@ -55,10 +76,20 @@ export function registerSocketHandlers(io: Server) {
       const controller = new AbortController();
       activeGenerations.set(sessionId, controller);
 
-      const appSettings = await getSettings();
+      const appSettings = await getSettings(userId);
 
       try {
-        await runAgentLoop(sessionId, content, images, socket, controller.signal, appSettings, transcripts, webpages);
+        await runAgentLoop(
+          sessionId,
+          content,
+          images,
+          socket,
+          controller.signal,
+          appSettings,
+          transcripts,
+          webpages,
+          userId
+        );
       } finally {
         activeGenerations.delete(sessionId);
       }

@@ -10,7 +10,7 @@ const port = parseInt(process.env.PORT ?? "3000", 10);
 const dev = process.env.NODE_ENV !== "production";
 
 async function main() {
-  // Initialize DB
+  // Initialize users management DB and per-user DB infrastructure
   console.log("[Server] Running database migrations...");
   runMigrations();
   console.log("[Server] Database ready");
@@ -46,6 +46,13 @@ async function main() {
   httpServer.listen(port, () => {
     console.log(`[Server] Running at http://localhost:${port}`);
     console.log(`[Server] Mode: ${dev ? "development" : "production"}`);
+    if (!process.env.AUTH_SECRET) {
+      console.warn(
+        "[Server] AUTH_SECRET not set in environment. " +
+        "A random secret will be generated and stored in the users DB. " +
+        "Set AUTH_SECRET in your .env for stable sessions across restarts."
+      );
+    }
   });
 
   // Graceful shutdown — force exit after 3s so open Socket.IO connections don't hang

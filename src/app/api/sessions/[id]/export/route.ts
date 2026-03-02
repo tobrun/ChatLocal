@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { sessions, messages } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
+import { getAuthDb } from "@/lib/api-auth";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const { id } = await params;
 
   const session = await db.query.sessions.findFirst({ where: eq(sessions.id, id) });

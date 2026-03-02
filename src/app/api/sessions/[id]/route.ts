@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { getAuthDb } from "@/lib/api-auth";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const { id } = await params;
   const session = await db.query.sessions.findFirst({ where: eq(sessions.id, id) });
   if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -22,6 +26,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const { id } = await params;
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
@@ -41,9 +49,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const { id } = await params;
   await db.delete(sessions).where(eq(sessions.id, id));
   return new NextResponse(null, { status: 204 });

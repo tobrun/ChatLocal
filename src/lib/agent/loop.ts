@@ -7,7 +7,7 @@ import type {
 import { v4 as uuidv4 } from "uuid";
 import { eq, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { getUserDb } from "@/lib/db";
 import { messages, sessions } from "@/lib/db/schema";
 import type { MessageData, AppSettings, TranscriptAttachment, WebpageAttachment } from "@/types";
 import { vllmClient } from "@/lib/vllm/client";
@@ -103,8 +103,10 @@ export async function runAgentLoop(
   abortSignal: AbortSignal,
   settings: AppSettings,
   transcripts: TranscriptAttachment[] = [],
-  webpages: WebpageAttachment[] = []
+  webpages: WebpageAttachment[] = [],
+  userId: string = "default"
 ): Promise<void> {
+  const db = getUserDb(userId);
   try {
     // Load session
     const session = await db.query.sessions.findFirst({
@@ -409,7 +411,7 @@ export async function runAgentLoop(
 
     // Auto-generate session title after first exchange (async, no await)
     if (session.title === "New Chat" && finalContent) {
-      generateSessionTitle(sessionId, userMessage, finalContent, modelId)
+      generateSessionTitle(sessionId, userMessage, finalContent, modelId, userId)
         .then((title) => {
           if (title) socket.emit("session_renamed", { sessionId, title });
         })

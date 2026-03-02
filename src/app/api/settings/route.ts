@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { DEFAULT_SETTINGS, type AppSettings } from "@/types";
+import { getAuthDb } from "@/lib/api-auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const rows = await db.select().from(settings);
   const merged: Partial<AppSettings> = {};
   for (const row of rows) {
@@ -17,6 +21,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const body: Partial<AppSettings> = await req.json();
 
   for (const [key, value] of Object.entries(body)) {

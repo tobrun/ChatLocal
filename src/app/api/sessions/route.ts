@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { sessions, messages } from "@/lib/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { getAuthDb } from "@/lib/api-auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const rows = await db
     .select({
       id: sessions.id,
@@ -27,6 +31,10 @@ const createSessionSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const auth = await getAuthDb(req);
+  if (auth.error) return auth.error;
+  const { db } = auth;
+
   const body = await req.json();
   const parsed = createSessionSchema.safeParse(body);
   if (!parsed.success) {

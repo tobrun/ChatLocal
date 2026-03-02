@@ -1,28 +1,69 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
+import * as usersSchema from "./users-schema";
 import path from "path";
 import fs from "fs";
 
-const dbPath = process.env.DATABASE_PATH ?? "./data/chatlocal.db";
-const resolvedPath = path.resolve(dbPath);
+// ─── Users (management) database ─────────────────────────────────────────────
 
-// Ensure the data directory exists
-const dir = path.dirname(resolvedPath);
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true });
+const dataDir = path.resolve(process.env.DATA_DIR ?? "./data");
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const sqlite = new Database(resolvedPath);
+const usersDbPath = path.join(dataDir, "users.db");
+const usersSqlite = new Database(usersDbPath);
+usersSqlite.pragma("journal_mode = WAL");
+usersSqlite.pragma("foreign_keys = ON");
 
-// Enable WAL mode for better concurrent read performance
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+export const usersDb = drizzle(usersSqlite, { schema: usersSchema });
 
-export const db = drizzle(sqlite, { schema });
+export function runUsersMigrations() {
+  usersSqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
 
-// Run inline migrations to create tables and FTS
-export function runMigrations() {
+    CREATE TABLE IF NOT EXISTS server_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+}
+
+// ─── Per-user chat databases ──────────────────────────────────────────────────
+
+const userDbCache = new Map<string, ReturnType<typeof drizzle>>();
+
+export function getUserDb(userId: string): ReturnType<typeof drizzle<typeof schema>> {
+  const cached = userDbCache.get(userId);
+  if (cached) return cached as ReturnType<typeof drizzle<typeof schema>>;
+
+  const userDataDir = path.join(dataDir, "users", userId);
+  if (!fs.existsSync(userDataDir)) {
+    fs.mkdirSync(userDataDir, { recursive: true });
+  }
+
+  const dbPath = path.join(userDataDir, "chatlocal.db");
+  const sqlite = new Database(dbPath);
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+
+  runChatMigrations(sqlite);
+
+  const db = drizzle(sqlite, { schema });
+  userDbCache.set(userId, db as ReturnType<typeof drizzle>);
+  return db as ReturnType<typeof drizzle<typeof schema>>;
+}
+
+// ─── Chat schema migrations (applied to each user's database) ─────────────────
+
+function runChatMigrations(sqlite: Database.Database) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -75,4 +116,8 @@ export function runMigrations() {
   `);
 }
 
-export { sqlite };
+// ─── Legacy export (kept for backwards compatibility during migration) ─────────
+// Re-export runMigrations as a no-op since migrations now happen per-user.
+export function runMigrations() {
+  runUsersMigrations();
+}

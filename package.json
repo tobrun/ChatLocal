@@ -6,7 +6,8 @@
     "dev": "NODE_ENV=development tsx server.ts",
     "build": "next build",
     "start": "tsx server.ts",
-    "lint": "eslint"
+    "lint": "eslint",
+    "create-user": "tsx scripts/create-user.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

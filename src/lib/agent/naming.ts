@@ -1,5 +1,5 @@
 import { vllmClient } from "@/lib/vllm/client";
-import { db } from "@/lib/db";
+import { getUserDb } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -7,8 +7,10 @@ export async function generateSessionTitle(
   sessionId: string,
   userMessage: string,
   assistantResponse: string,
-  modelId: string
+  modelId: string,
+  userId: string = "default"
 ): Promise<string | undefined> {
+  const db = getUserDb(userId);
   try {
     // Use streaming so that thinking tokens (delta.reasoning) don't count against
     // max_tokens — only delta.content tokens do. Non-streaming mode counts thinking
