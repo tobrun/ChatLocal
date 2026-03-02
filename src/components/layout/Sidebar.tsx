@@ -10,6 +10,7 @@ import { useSessions } from "@/hooks/useSessions";
 import { SessionItem } from "@/components/session/SessionItem";
 import { useHealth } from "@/hooks/useHealth";
 import { useSettingsStore } from "@/stores/settings";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import useSWR from "swr";
 import type { VllmModel } from "@/types";
 
@@ -68,16 +69,28 @@ export function Sidebar() {
       {/* Header */}
       <div className="p-3 flex items-center gap-2">
         <span className="font-semibold text-sm flex-1">ChatLocal</span>
-        <div
-          className={`w-2 h-2 rounded-full ${
-            health.status === "ok"
-              ? "bg-green-500"
-              : health.status === "down"
-              ? "bg-destructive"
-              : "bg-muted-foreground"
-          }`}
-          title={health.status === "ok" ? `Connected: ${health.model}` : "Disconnected"}
-        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`w-2 h-2 rounded-full cursor-default ${
+                  health.status === "ok"
+                    ? "bg-green-500"
+                    : health.status === "down"
+                    ? "bg-destructive"
+                    : "bg-muted-foreground"
+                }`}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {health.status === "ok"
+                ? `${health.model} — Active`
+                : health.status === "down"
+                ? "Server unreachable"
+                : "Checking..."}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="px-2 pb-2">

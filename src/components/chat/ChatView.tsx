@@ -37,23 +37,13 @@ export function ChatView({ sessionId }: ChatViewProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Chat header */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium truncate">{modelName}</span>
-            {isReadOnly && (
-              <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
-                Read-only
-              </Badge>
-            )}
-            {session?.modelId && isModelLoaded && (
-              <Badge variant="outline" className="text-xs border-green-500/30 text-green-500">
-                Active
-              </Badge>
-            )}
-          </div>
+      {isReadOnly && (
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/60 bg-background/80 backdrop-blur">
+          <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
+            Read-only
+          </Badge>
         </div>
-      </div>
+      )}
 
       {/* Error display */}
       {error && (
