@@ -6,6 +6,8 @@ import type {
 } from "openai/resources/chat/completions";
 import { v4 as uuidv4 } from "uuid";
 import { eq, sql } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 import { db } from "@/lib/db";
 import { messages, sessions } from "@/lib/db/schema";
@@ -15,6 +17,7 @@ import { mcpManager } from "@/lib/mcp/manager";
 import { summarizeAndCompress, countTokens } from "./context";
 import { generateSessionTitle } from "./naming";
 import { listModels } from "@/lib/vllm/health";
+import { searchMemories } from "@/lib/db/memory";
 
 const MAX_TOOL_ITERATIONS = 10;
 
@@ -95,6 +98,42 @@ function buildOpenAIMessages(
   return result;
 }
 
+const INBOX_PATH = process.env.MEMORY_INBOX_PATH ?? "./memory-agent/inbox";
+
+function writeToInbox(data: Record<string, unknown>): void {
+  try {
+    const inboxDir = path.resolve(INBOX_PATH);
+    fs.mkdirSync(inboxDir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sessionId = (data.sessionId as string) ?? "unknown";
+    const filename = `${timestamp}_${sessionId}.json`;
+    fs.writeFileSync(path.join(inboxDir, filename), JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    // fire-and-forget — don't interrupt the main flow
+  }
+}
+
+async function extractMemoryKeywords(userMessage: string, modelId: string): Promise<string> {
+  try {
+    const resp = await vllmClient.chat.completions.create({
+      model: modelId,
+      messages: [
+        {
+          role: "user",
+          content: `Extract 3-5 search keywords from this message. Return ONLY the keywords as a comma-separated list, nothing else.\n\nMessage: ${userMessage.slice(0, 500)}`,
+        },
+      ],
+      max_tokens: 50,
+      temperature: 0,
+      stream: false,
+    });
+    return resp.choices[0]?.message?.content?.trim() ?? userMessage.slice(0, 100);
+  } catch {
+    // Fall back to first 100 chars of the message
+    return userMessage.slice(0, 100);
+  }
+}
+
 export async function runAgentLoop(
   sessionId: string,
   userMessage: string,
@@ -103,7 +142,8 @@ export async function runAgentLoop(
   abortSignal: AbortSignal,
   settings: AppSettings,
   transcripts: TranscriptAttachment[] = [],
-  webpages: WebpageAttachment[] = []
+  webpages: WebpageAttachment[] = [],
+  memoryEnabled = true
 ): Promise<void> {
   try {
     // Load session
@@ -187,6 +227,23 @@ export async function runAgentLoop(
       historyData = await summarizeAndCompress(historyData, modelId, threshold, maxModelLen);
     }
 
+    // Memory recall — before the agent loop starts
+    let memorySystemAppend = "";
+    if (memoryEnabled) {
+      const keywords = await extractMemoryKeywords(userMessage, modelId);
+      socket.emit("memory_recall_start", { query: keywords });
+
+      const recalled = searchMemories(keywords, 10);
+      socket.emit("memory_recall_result", { memories: recalled });
+
+      if (recalled.length > 0) {
+        const memLines = recalled
+          .map((m) => `[Memory #${m.id}] (importance: ${m.importance.toFixed(2)}): ${m.summary}`)
+          .join("\n");
+        memorySystemAppend = `\n\n## Recalled Memories\n${memLines}`;
+      }
+    }
+
     const tools = mcpManager.getOpenAITools() as ChatCompletionTool[];
     let iteration = 0;
     let finalContent = "";
@@ -204,7 +261,8 @@ export async function runAgentLoop(
         historyData = await summarizeAndCompress(historyData, modelId, threshold, maxModelLen);
       }
 
-      const openAIMessages = buildOpenAIMessages(historyData, settings.systemPrompt);
+      const systemPromptWithMemory = settings.systemPrompt + (iteration === 1 ? memorySystemAppend : "");
+      const openAIMessages = buildOpenAIMessages(historyData, systemPromptWithMemory);
 
       // Create streaming completion
       const baseParams = {
@@ -414,6 +472,17 @@ export async function runAgentLoop(
           if (title) socket.emit("session_renamed", { sessionId, title });
         })
         .catch((err) => console.error("[AgentLoop] Title generation failed:", err));
+    }
+
+    // Write exchange to memory inbox (fire-and-forget)
+    if (finalContent) {
+      writeToInbox({
+        type: "chat_exchange",
+        userMessage,
+        assistantResponse: finalContent,
+        sessionId,
+        timestamp: new Date().toISOString(),
+      });
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

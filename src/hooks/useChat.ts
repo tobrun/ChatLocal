@@ -11,6 +11,9 @@ import type {
   ToolResultEvent,
   MessageCompleteEvent,
   GenerationErrorEvent,
+  MemoryRecallStartEvent,
+  MemoryRecallResultEvent,
+  MemoryItem,
 } from "@/types";
 
 interface ActiveToolCall {
@@ -22,11 +25,18 @@ interface ActiveToolCall {
   done: boolean;
 }
 
+export interface MemoryRecallState {
+  query: string;
+  memories: MemoryItem[];
+  done: boolean;
+}
+
 interface StreamingMessage {
   id: string;
   content: string;
   thinking: string;
   toolCalls: ActiveToolCall[];
+  memoryRecall: MemoryRecallState | null;
   isStreaming: boolean;
 }
 
@@ -96,6 +106,20 @@ export function useChat(sessionId: string | null) {
       });
     };
 
+    const onMemoryRecallStart = ({ query }: MemoryRecallStartEvent) => {
+      setStreaming((prev) => {
+        if (!prev) return null;
+        return { ...prev, memoryRecall: { query, memories: [], done: false } };
+      });
+    };
+
+    const onMemoryRecallResult = ({ memories }: MemoryRecallResultEvent) => {
+      setStreaming((prev) => {
+        if (!prev) return null;
+        return { ...prev, memoryRecall: prev.memoryRecall ? { ...prev.memoryRecall, memories, done: true } : null };
+      });
+    };
+
     const onMessageComplete = ({ messageId, sessionId: sid }: MessageCompleteEvent) => {
       if (sid !== sessionIdRef.current) return;
       setIsGenerating(false);
@@ -122,6 +146,8 @@ export function useChat(sessionId: string | null) {
     socket.on("tool_call_result", onToolCallResult);
     socket.on("message_complete", onMessageComplete);
     socket.on("generation_error", onError);
+    socket.on("memory_recall_start", onMemoryRecallStart);
+    socket.on("memory_recall_result", onMemoryRecallResult);
 
     return () => {
       socket.off("token", onToken);
@@ -130,6 +156,8 @@ export function useChat(sessionId: string | null) {
       socket.off("tool_call_result", onToolCallResult);
       socket.off("message_complete", onMessageComplete);
       socket.off("generation_error", onError);
+      socket.off("memory_recall_start", onMemoryRecallStart);
+      socket.off("memory_recall_result", onMemoryRecallResult);
     };
   }, [socket]);
 
@@ -139,6 +167,7 @@ export function useChat(sessionId: string | null) {
       images: string[] = [],
       transcripts?: { videoId: string; transcript: string }[],
       webpages?: { url: string; title: string; content: string }[],
+      memoryEnabled = true,
     ) => {
       if (!sessionId || isGenerating) return;
 
@@ -192,10 +221,11 @@ export function useChat(sessionId: string | null) {
         content: "",
         thinking: "",
         toolCalls: [],
+        memoryRecall: null,
         isStreaming: true,
       });
 
-      socket.emit("send_message", { sessionId, content, images, transcripts, webpages });
+      socket.emit("send_message", { sessionId, content, images, transcripts, webpages, memoryEnabled });
     },
     [sessionId, isGenerating, socket]
   );

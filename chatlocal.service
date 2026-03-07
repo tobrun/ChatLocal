@@ -1,0 +1,24 @@
+[Unit]
+Description=ChatLocal
+After=network.target
+
+[Service]
+Type=simple
+User=nurbot
+WorkingDirectory=/home/nurbot/ws/chatlocal
+EnvironmentFile=/home/nurbot/ws/chatlocal/.env
+
+# nvm-managed node — must use full paths; tsx is local to the project
+ExecStart=/home/nurbot/.nvm/versions/node/v22.17.0/bin/node \
+  /home/nurbot/ws/chatlocal/node_modules/.bin/tsx \
+  server.ts
+
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatlocal
+
+[Install]
+WantedBy=multi-user.target
