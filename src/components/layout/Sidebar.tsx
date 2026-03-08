@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, SearchIcon, SunIcon, MoonIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, SunIcon, MoonIcon, Brain, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useSessions } from "@/hooks/useSessions";
 import { SessionItem } from "@/components/session/SessionItem";
 import { useHealth } from "@/hooks/useHealth";
@@ -18,6 +20,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { sessions, refresh } = useSessions();
   const [search, setSearch] = useState("");
   const health = useHealth();
@@ -141,8 +144,30 @@ export function Sidebar() {
 
       <Separator />
 
-      {/* Footer */}
-      <div className="p-2 flex justify-end">
+      {/* Footer nav */}
+      <div className="p-2 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <Link href="/memories">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", pathname === "/memories" && "bg-accent text-accent-foreground")}
+              title="Memories"
+            >
+              <Brain className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/settings">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", pathname === "/settings" && "bg-accent text-accent-foreground")}
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
         <Button
           variant="ghost"
           size="icon"

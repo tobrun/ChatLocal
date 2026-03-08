@@ -82,6 +82,33 @@ export interface SendMessagePayload {
   images: string[];
   transcripts?: TranscriptAttachment[];
   webpages?: WebpageAttachment[];
+  memoryEnabled?: boolean;
+}
+
+export interface MemoryItem {
+  id: number;
+  source: string;
+  summary: string;
+  entities: string[];
+  topics: string[];
+  connections: Array<{ linked_to: number; relationship: string }>;
+  importance: number;
+  created_at: string;
+  consolidated: number;
+}
+
+export interface MemoryRecallStartEvent {
+  query: string;
+}
+
+export interface MemoryRecallResultEvent {
+  memories: MemoryItem[];
+}
+
+export interface MemoryStatusEvent {
+  healthy: boolean;
+  lastConsolidation: string | null;
+  memoryCount: number;
 }
 
 export interface CancelGenerationPayload {

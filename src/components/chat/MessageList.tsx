@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { AssistantMessage } from "./AssistantMessage";
 import type { MessageData } from "@/types";
+import type { MemoryRecallState } from "@/hooks/useChat";
 
 interface ActiveToolCall {
   callId: string;
@@ -19,6 +20,7 @@ interface StreamingMessage {
   content: string;
   thinking: string;
   toolCalls: ActiveToolCall[];
+  memoryRecall: MemoryRecallState | null;
   isStreaming: boolean;
 }
 
@@ -67,6 +69,7 @@ export function MessageList({ messages, streaming }: MessageListProps) {
                 content={streaming.content}
                 thinking={streaming.thinking}
                 toolCalls={streaming.toolCalls}
+                memoryRecall={streaming.memoryRecall}
                 isStreaming={streaming.isStreaming}
               />
             </div>

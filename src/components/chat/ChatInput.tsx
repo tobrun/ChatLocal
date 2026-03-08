@@ -10,7 +10,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Square, Paperclip, X, Youtube, Globe } from "lucide-react";
+import { Send, Square, Paperclip, X, Youtube, Globe, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { YouTubeDialog } from "./YouTubeDialog";
 import { WebpageDialog } from "./WebpageDialog";
@@ -27,7 +27,7 @@ interface WebpageAttachment {
 }
 
 interface ChatInputProps {
-  onSend: (content: string, images: string[], transcripts?: TranscriptAttachment[], webpages?: WebpageAttachment[]) => void;
+  onSend: (content: string, images: string[], transcripts?: TranscriptAttachment[], webpages?: WebpageAttachment[], memoryEnabled?: boolean) => void;
   onCancel: () => void;
   isGenerating: boolean;
   disabled?: boolean;
@@ -50,6 +50,7 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
   const [isDragging, setIsDragging] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [webpageOpen, setWebpageOpen] = useState(false);
+  const [memoryEnabled, setMemoryEnabled] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,13 +85,14 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
       images,
       transcripts.length > 0 ? transcripts : undefined,
       webpages.length > 0 ? webpages : undefined,
+      memoryEnabled,
     );
     setValue("");
     setImages([]);
     setTranscripts([]);
     setWebpages([]);
     textareaRef.current?.focus();
-  }, [value, images, transcripts, webpages, isGenerating, onSend]);
+  }, [value, images, transcripts, webpages, isGenerating, onSend, memoryEnabled]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -262,6 +264,17 @@ export function ChatInput({ onSend, onCancel, isGenerating, disabled }: ChatInpu
             el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
           }}
         />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-9 w-9 flex-shrink-0", memoryEnabled ? "text-primary" : "text-muted-foreground")}
+          onClick={() => setMemoryEnabled((v) => !v)}
+          disabled={disabled}
+          title={memoryEnabled ? "Memory recall enabled" : "Memory recall disabled"}
+        >
+          <Brain className="h-4 w-4" />
+        </Button>
 
         {isGenerating ? (
           <Button

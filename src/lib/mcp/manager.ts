@@ -147,7 +147,7 @@ class McpManager {
     for (const [name, server] of this.servers) {
       try {
         // Remove the onclose handler before closing so it doesn't trigger a restart
-        server.transport.onclose = null;
+        server.transport.onclose = undefined;
         await server.transport.close();
       } catch {
         // ignore shutdown errors
