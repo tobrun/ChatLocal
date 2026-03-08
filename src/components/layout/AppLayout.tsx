@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sidebar } from "./Sidebar";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings } from "lucide-react";
+import { Menu, Settings, Brain } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -43,6 +43,16 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="hidden md:flex flex-1" />
 
           <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/memories">
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Brain className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="left">Memories</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/settings">

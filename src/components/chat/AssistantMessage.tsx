@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
+import { MemoryRecallCard } from "./MemoryRecallCard";
+import type { MemoryRecallState } from "@/hooks/useChat";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useState, useCallback } from "react";
@@ -22,6 +24,7 @@ interface AssistantMessageProps {
   content: string;
   thinking?: string | null;
   toolCalls?: ActiveToolCall[];
+  memoryRecall?: MemoryRecallState | null;
   isStreaming?: boolean;
 }
 
@@ -74,10 +77,18 @@ export function AssistantMessage({
   content,
   thinking,
   toolCalls = [],
+  memoryRecall,
   isStreaming,
 }: AssistantMessageProps) {
   return (
     <div className="space-y-1">
+      {memoryRecall && (
+        <MemoryRecallCard
+          query={memoryRecall.query}
+          memories={memoryRecall.memories}
+          done={memoryRecall.done}
+        />
+      )}
       {thinking && <ThinkingBlock content={thinking} isStreaming={isStreaming} />}
 
       {toolCalls.map((tc) => (
